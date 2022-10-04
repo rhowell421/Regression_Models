@@ -1,0 +1,184 @@
+---
+title: "Do Manual Transmission Cars Have Better Gas Mileage?"
+author: "Rhowell"
+date: "2022-10-04"
+output:
+  html_document:
+    toc: yes
+    toc_float: yes
+    theme: cosmo
+    keep_md: no
+    df_print: paged
+  pdf_document:
+    toc: yes
+    df_print: kable
+    number_sections: false
+    fig_caption: yes
+    highlight: tango
+    dev: pdf
+---
+*Created with Knitr*
+
+## Executive Summary
+
+You work for Motor Trend, a magazine about the automobile industry. Looking at a data set of a collection of cars, they are interested in exploring the relationship between a set of variables and miles per gallon (MPG) (outcome). They are particularly interested in the following two questions:
+
+    “Is an automatic or manual transmission better for MPG”
+
+    "Quantify the MPG difference between automatic and manual transmissions"  
+    
+We used a variety of comparison methods (t test, simple linear regression, and multivariate linear regression) to quantify the difference in mpg between automatic and manual transmissions.
+
+We concluded that one can expect approximately 3 mpg advantage when one selects a manual transmission car vice an automatic transmission car.  
+
+## Data Description
+
+The data was extracted from the 1974 Motor Trend US magazine, and comprises fuel consumption and 10 aspects of automobile design and performance for 32 automobiles (1973–74 models).
+
+A data frame with 32 observations on 11 (numeric) variables.
+
+* [, 1]	mpg	Miles/(US) gallon  
+* [, 2]	cyl	Number of cylinders  
+* [, 3]	disp	Displacement (cu.in.)  
+* [, 4]	hp	Gross horsepower  
+* [, 5]	drat	Rear axle ratio  
+* [, 6]	wt	Weight (1000 lbs)  
+* [, 7]	qsec	1/4 mile time  
+* [, 8]	vs	Engine (0 = V-shaped, 1 = straight)  
+* [, 9]	am	Transmission (0 = automatic, 1 = manual)  
+* [,10]	gear	Number of forward gears  
+* [,11]	carb	Number of carburetors  
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(knitr)
+library(ggplot2)
+library(GGally)
+library(MASS)
+library(kableExtra)
+library(ggcorrplot)
+```
+
+## Load Data
+
+```{r}
+library(datasets)
+data(mtcars)
+str(mtcars)
+```
+
+## Data Analysis
+
+How does the transmission type affect gas mileage?
+
+```{r}
+ggplot(data = mtcars, aes(as.factor(am), mpg)) + 
+  geom_boxplot() +
+  theme_bw() +
+  xlab("Transmission Type (0 = Automatic, 1 = Manual)") + 
+  ylab("MPG") +
+  labs(title="MPG by Transmission Type") 
+```
+
+Visually, it appears that manual transmissions do have better gas mileage than automatics. 
+
+## Significant Statistics 
+
+Let's next test statistically if there is a difference between automatic and manual transmissions. We will perform a hypothesis test, with the automatic transmission as the null, and manual if we reject the null.
+
+```{r}
+t.test(mpg ~ am, data = mtcars, conf.level = 0.95)
+```
+
+Since the p-value is 0.0013 (less than p < 0.005), and the confidence interval does not contain 0, we can reject the null hypothesis, restating, we can conclude that there is statistically significant difference between manual and automatic transmissions. This supports our visual estimation above.
+
+## Linear Regression
+
+If we continue to assess with different variables, more patterns may emerge. Whereas testing for differences in just the transmission did seem significant, we can take into account confounding variables.
+
+Beginning with a simple linear regression: 
+
+```{r}
+summary(lm(mpg ~ as.factor(am), mtcars))
+```
+
+We see the ${R^2}$ value is 0.338, so this one variable linear regression model only accounts for 34% of the variance in fuel consumption. 
+
+The next question we want to ask, is what other variables correlate to gas mileage?
+
+```{r}
+correlation_matrix <- round(cor(mtcars),1)
+corrp.mat <- cor_pmat(mtcars)
+ggcorrplot(correlation_matrix, hc.order =TRUE, 
+           type ="lower", lab =TRUE)
+```
+
+It appears that number of gears, transmission, engine shape (vs), and quarter mile time (qsec) all correlate with mpg.
+
+## Multiple Linear Regression
+
+Can we fit a better model with multiple variables? We'll create a stepwise regression using the `stepAIC()` from the `MASS` package to find the variables which result in the best fit.
+
+```{r, results='hide'}
+initialModel <- lm(mpg ~ ., data = mtcars)
+stepReg <- stepAIC(initialModel, direction = "both")
+# note: results are hidden
+
+```
+
+```{r}
+print(stepReg$anova)
+```
+
+The model with the best fit accounts for weight and quarter mile time in addition to transmission.
+
+```{r}
+summary(bestModelFit <- lm(mpg ~ wt + qsec + as.factor(am), data = mtcars))
+```
+
+Now our $R^2$ value is .833, so our adjusted model accounts for 83% of variance in gas mileage.
+
+```{r}
+ggplot(mtcars, aes(wt, mpg, color = as.factor(am))) +
+  geom_point() +
+  geom_smooth(aes(y = predict(bestModelFit, mtcars)),method = lm) +
+  theme_bw() +
+  labs(title = "Best Fit Model by Transmission Type") +
+  xlab("Weight in 1000lbs") +
+  ylab("MPG") +
+  scale_color_discrete(name = "Transmission Type", labels = c("Automatic", "Manual"))
+```
+
+
+## Residuals
+
+The plots of the residuals support the conclusion that accounting for multiple variables accounts for more of the variance.
+
+The points in the *Residuals vs. Fitted* plot appear to be random which indicate the data are independent. The plot also suggests three potential outliers for the Chrysler Imperial, Fiat 128, and Toyota Corolla.
+
+The points of the *Normal Q-Q* plot follow the line indicating that the residuals are normally distributed.
+
+The points on the *Scale-Location* plot appear to be spread equally along the line with random  points spread out allowing us to conclude equal variance (homoscedasticity).
+
+The *Residuals vs. Leverage* plot doesn't show any influential points. All points are within the 0.05 lines which conclude there are no outliers.
+
+
+```{r}
+par(mfrow = c(2, 2))
+plot(bestModelFit)
+```
+
+## Conclusion
+
+1. **Is an automatic or manual transmission better for MPG?**
+
+Yes, one can expect better gas mileage with a manual transmission vice an automatic transmission. There were a few confounding variables, such as weight and quarter mile time in addition to transmission type that better predict variance in gas mileage.
+
+
+2. **Quantify the MPG difference between automatic and manual transmissions.**
+
+Both the t test and the simple linear regression showed that there is a 7.25 mpg premium when selecting a manual transmissions vice automatic transmissions.
+    
+However, by using the best fitting model (holding weight and quarter mile time constant), the premium dropped to 2.94 mpg when selecting a manual transmission vice automatic transmission. 
