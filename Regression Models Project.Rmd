@@ -3,12 +3,6 @@ title: "Do Manual Transmission Cars Have Better Gas Mileage?"
 author: "Rhowell"
 date: "2022-10-04"
 output:
-  html_document:
-    toc: yes
-    toc_float: yes
-    theme: cosmo
-    keep_md: no
-    df_print: paged
   pdf_document:
     toc: yes
     df_print: kable
@@ -16,6 +10,12 @@ output:
     fig_caption: yes
     highlight: tango
     dev: pdf
+  html_document:
+    toc: yes
+    toc_float: yes
+    theme: cosmo
+    keep_md: no
+    df_print: paged
 ---
 *Created with Knitr*
 
@@ -144,8 +144,9 @@ Now our $R^2$ value is .833, so our adjusted model accounts for 83% of variance 
 ggplot(mtcars, aes(wt, mpg, color = as.factor(am))) +
   geom_point() +
   geom_smooth(aes(y = predict(bestModelFit, mtcars)),method = lm) +
+  geom_smooth(aes(y = predict(lm(mpg ~ as.factor(am), mtcars))), method = lm) +
   theme_bw() +
-  labs(title = "Best Fit Model by Transmission Type") +
+  labs(title = "Best Fit Multivariate Model vs Simple Linear Regression Model \n by Transmission Type") +
   xlab("Weight in 1000lbs") +
   ylab("MPG") +
   scale_color_discrete(name = "Transmission Type", labels = c("Automatic", "Manual"))
